@@ -5,185 +5,58 @@ from kivy.uix.button import Button
 from kivy.uix.spinner import Spinner
 from kivy.uix.label import Label
 
-import asyncio
-import edge_tts
-import threading
-from datetime import datetime
-import pygame
+from jnius import autoclass
+import os
 
-pygame.mixer.init()
-
-voice_map = {
-    "English Male": "en-US-GuyNeural",
-    "English Female": "en-US-AriaNeural",
-    "Hindi Male": "hi-IN-MadhurNeural",
-    "Hindi Female": "hi-IN-SwaraNeural"
-}
+# Android TTS classes
+PythonActivity = autoclass('org.kivy.android.PythonActivity')
+TextToSpeech = autoclass('android.speech.tts.TextToSpeech')
+Locale = autoclass('java.util.Locale')
 
 
 class TTSApp(App):
 
     def build(self):
 
-        layout = BoxLayout(
-            orientation="vertical",
-            padding=10,
-            spacing=10
+        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+
+        self.text = TextInput(hint_text="Enter text", multiline=True)
+
+        self.language = Spinner(
+            text="English",
+            values=("English", "Hindi")
         )
 
-        self.text = TextInput(
-            hint_text="Enter text here",
-            multiline=True,
-            size_hint=(1, 0.5)
-        )
+        self.speak_btn = Button(text="Speak Text")
 
-        self.voice = Spinner(
-            text="English Male",
-            values=(
-                "English Male",
-                "English Female",
-                "Hindi Male",
-                "Hindi Female"
-            )
-        )
+        self.status = Label(text="Ready")
 
-        self.wpm = TextInput(
-            text="80",
-            multiline=False,
-            hint_text="Enter WPM (30-150)"
-        )
+        self.speak_btn.bind(on_press=self.speak_text)
 
-        self.generate_btn = Button(
-            text="Generate MP3"
-        )
+        self.layout.add_widget(self.text)
+        self.layout.add_widget(self.language)
+        self.layout.add_widget(self.speak_btn)
+        self.layout.add_widget(self.status)
 
-        self.play_btn = Button(
-            text="▶ Play"
-        )
+        return self.layout
 
-        self.stop_btn = Button(
-            text="⏹ Stop"
-        )
-
-        self.status = Label(
-            text="Ready"
-        )
-
-        self.generate_btn.bind(
-            on_press=self.start_generation
-        )
-
-        self.play_btn.bind(
-            on_press=self.play_audio
-        )
-
-        self.stop_btn.bind(
-            on_press=self.stop_audio
-        )
-
-        layout.add_widget(self.text)
-        layout.add_widget(self.voice)
-        layout.add_widget(self.wpm)
-        layout.add_widget(self.generate_btn)
-        layout.add_widget(self.play_btn)
-        layout.add_widget(self.stop_btn)
-        layout.add_widget(self.status)
-
-        return layout
-
-    def start_generation(self, instance):
-
-        threading.Thread(
-            target=self.generate_audio,
-            daemon=True
-        ).start()
-
-    def generate_audio(self):
+    def speak_text(self, instance):
 
         try:
+            activity = PythonActivity.mActivity
 
-            text = self.text.text.strip()
+            tts = TextToSpeech(activity, None)
 
-            if not text:
-                self.status.text = "Enter some text"
-                return
+            text = self.text.text
 
-            try:
-                wpm = int(self.wpm.text)
-
-                if wpm < 30:
-                    wpm = 30
-
-                if wpm > 150:
-                    wpm = 150
-
-            except:
-                self.status.text = "Enter valid WPM"
-                return
-
-            rate_percent = int((wpm - 80) * 1.5)
-
-            if rate_percent >= 0:
-                rate = f"+{rate_percent}%"
+            if self.language.text == "Hindi":
+                tts.setLanguage(Locale("hi", "IN"))
             else:
-                rate = f"{rate_percent}%"
+                tts.setLanguage(Locale.US)
 
-            self.status.text = "Generating..."
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, None, None)
 
-            filename = (
-                "tts_" +
-                datetime.now().strftime("%Y%m%d_%H%M%S")
-                + ".mp3"
-            )
-
-            path = f"/storage/emulated/0/{filename}"
-
-            self.last_audio = path
-
-            async def create():
-
-                communicate = edge_tts.Communicate(
-                    text=text,
-                    voice=voice_map[self.voice.text],
-                    rate=rate
-                )
-
-                await communicate.save(path)
-
-            asyncio.run(create())
-
-            self.status.text = (
-                f"Saved Successfully\n{filename}"
-            )
-
-        except Exception as e:
-            self.status.text = str(e)
-
-    def play_audio(self, instance):
-
-        try:
-
-            if not hasattr(self, "last_audio"):
-                self.status.text = "No audio generated"
-                return
-
-            pygame.mixer.music.load(
-                self.last_audio
-            )
-
-            pygame.mixer.music.play()
-
-            self.status.text = "Playing Audio"
-
-        except Exception as e:
-            self.status.text = str(e)
-
-    def stop_audio(self, instance):
-
-        try:
-
-            pygame.mixer.music.stop()
-            self.status.text = "Stopped"
+            self.status.text = "Speaking..."
 
         except Exception as e:
             self.status.text = str(e)
