@@ -9,21 +9,19 @@ source.include_exts = py
 
 version = 1.0
 
-# ✅ ONLY Android-compatible requirements
-requirements = python3,kivy,pyjnius
+# IMPORTANT: minimal stable requirements
+requirements = python3,kivy
 
 orientation = portrait
 fullscreen = 0
 
-# Android permissions (needed for TTS engine access)
+# Android permissions
 android.permissions = INTERNET
 
-# Stable Android build settings
+# Stable build settings
 android.api = 33
 android.minapi = 21
-
-# Optional but recommended
-log_level = 2
-
-# Avoid build issues
 android.ndk = 25b
+
+# Use SDL2 backend (IMPORTANT for Kivy APK)
+android.bootstrap = sdl2
