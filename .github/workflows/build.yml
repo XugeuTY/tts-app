@@ -25,10 +25,6 @@ jobs:
           pip3 install --upgrade pip
           pip3 install cython buildozer
 
-      - name: Initialize Buildozer
-        run: |
-          buildozer init || true
-
       - name: Build APK
         run: |
           buildozer -v android debug
