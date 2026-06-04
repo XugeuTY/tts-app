@@ -1,0 +1,3 @@
+kivy
+edge-tts
+pygame
